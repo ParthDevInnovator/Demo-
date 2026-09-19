@@ -51,16 +51,11 @@ function SignInForm() {
       localStorage.setItem("nexus_user", JSON.stringify(user));
       router.push(nextPath);
     } else {
-      setError("Invalid email or password. Use the seed credentials below.");
+      setError("Invalid email or password.");
       setLoading(false);
     }
   };
 
-  const fillSeedUser = (user: typeof SEED_USERS[0]) => {
-    setEmail(user.email);
-    setPassword(user.password);
-    setError("");
-  };
 
   return (
     <div
@@ -274,70 +269,7 @@ function SignInForm() {
             </button>
           </form>
 
-          {/* Seed Credentials Panel */}
-          <div
-            className="mx-8 mb-8 rounded-xl overflow-hidden"
-            style={{ border: "1px solid rgba(75,127,239,0.15)" }}
-          >
-            <div
-              className="px-4 py-2.5 flex items-center gap-2"
-              style={{ background: "rgba(75,127,239,0.08)", borderBottom: "1px solid rgba(75,127,239,0.1)" }}
-            >
-              <span className="material-symbols-outlined text-sm" style={{ color: "#6B9AF8" }}>
-                key
-              </span>
-              <span className="text-[11px] font-mono font-semibold uppercase tracking-wider" style={{ color: "#6B9AF8" }}>
-                Demo Credentials — click to fill
-              </span>
-            </div>
-            <div className="flex flex-col divide-y" style={{ divideColor: "rgba(30,38,48,0.8)" }}>
-              {SEED_USERS.map((user, i) => (
-                <button
-                  key={user.email}
-                  type="button"
-                  onClick={() => fillSeedUser(user)}
-                  className="w-full px-4 py-3 text-left flex items-center justify-between gap-3 transition-colors group"
-                  style={{ background: "#070A0D" }}
-                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "#0D1117")}
-                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "#070A0D")}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                      style={{
-                        background: i === 0
-                          ? "linear-gradient(135deg, #4B7FEF, #3560BE)"
-                          : "linear-gradient(135deg, #28A866, #1D7A4A)",
-                      }}
-                    >
-                      {user.name.charAt(0)}
-                    </div>
-                    <div className="truncate">
-                      <div className="text-xs font-semibold text-white truncate">{user.name}</div>
-                      <div className="text-[10px] font-mono truncate" style={{ color: "#6B7585" }}>
-                        {user.email}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end shrink-0 gap-0.5">
-                    <span
-                      className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold"
-                      style={{
-                        background: i === 0 ? "rgba(75,127,239,0.1)" : "rgba(61,214,140,0.1)",
-                        border: i === 0 ? "1px solid rgba(75,127,239,0.2)" : "1px solid rgba(61,214,140,0.2)",
-                        color: i === 0 ? "#6B9AF8" : "#3DD68C",
-                      }}
-                    >
-                      {user.role}
-                    </span>
-                    <span className="text-[10px] font-mono" style={{ color: "#4B5568" }}>
-                      pw: {user.password}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+
         </div>
 
         {/* Footer note */}

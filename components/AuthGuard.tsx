@@ -13,7 +13,20 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [authorized, setAuthorized] = useState(false);
 
+  // Routes inside (console) that are publicly accessible without a session
+  const PUBLIC_CONSOLE_ROUTES = ["/dashboard"];
+
   useEffect(() => {
+    const isPublic = PUBLIC_CONSOLE_ROUTES.some(
+      (route) => pathname === route || pathname.startsWith(route + "/")
+    );
+
+    if (isPublic) {
+      // Dashboard is viewable without signing in
+      setAuthorized(true);
+      return;
+    }
+
     const user = localStorage.getItem("nexus_user");
     if (!user) {
       // Not authenticated — send to sign in, preserving the intended destination
