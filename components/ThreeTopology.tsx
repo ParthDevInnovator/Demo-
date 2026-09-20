@@ -3,8 +3,18 @@
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-export default function ThreeTopology() {
+interface ThreeTopologyProps {
+  scrollProgress?: number; // 0–1, used for subtle camera parallax
+}
+
+export default function ThreeTopology({ scrollProgress = 0 }: ThreeTopologyProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef(scrollProgress);
+
+  // Keep scroll ref in sync without re-running the main effect
+  useEffect(() => {
+    scrollRef.current = scrollProgress;
+  }, [scrollProgress]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -36,7 +46,6 @@ export default function ThreeTopology() {
     fillLight.position.set(-20, -10, -15);
     scene.add(fillLight);
 
-    // Subtle blue accent light near the primary cluster
     const accentLight = new THREE.PointLight(0x5B8DEF, 1.2, 40);
     accentLight.position.set(0, 4, 0);
     scene.add(accentLight);
@@ -45,7 +54,7 @@ export default function ThreeTopology() {
     const topologyGroup = new THREE.Group();
     scene.add(topologyGroup);
 
-    // Real enterprise infrastructure components
+    // Infrastructure components
     const nodesData = [
       { name: "Kubernetes Control Plane", role: "core", pos: [0, 2, 0] as const, isPrimary: true, size: 2.0 },
       { name: "API Gateway", role: "gateway", pos: [-10, 4, 5] as const, isPrimary: false, size: 1.5 },
@@ -63,11 +72,13 @@ export default function ThreeTopology() {
       wire: THREE.LineSegments;
       corePip: THREE.Mesh;
       speed: number;
+      activated: boolean;
+      activateAt: number; // ms from scene start
     }
 
     const nodeMeshes: NodeMeshItem[] = [];
 
-    // Dark graphite metallic material for realistic infrastructure chassis
+    // Materials — nodes start dim and activate sequentially
     const chassisMat = new THREE.MeshStandardMaterial({
       color: 0x1E232B,
       metalness: 0.75,
@@ -82,7 +93,6 @@ export default function ThreeTopology() {
       emissiveIntensity: 0.25,
     });
 
-    // Wireframe for CAD/infrastructure technical feel
     const wireMat = new THREE.LineBasicMaterial({
       color: 0x303741,
       transparent: true,
@@ -95,7 +105,25 @@ export default function ThreeTopology() {
       opacity: 0.45,
     });
 
-    nodesData.forEach((node) => {
+    // Dim start materials for sequential activation
+    const dimChassisMat = new THREE.MeshStandardMaterial({
+      color: 0x131920,
+      metalness: 0.5,
+      roughness: 0.5,
+      transparent: true,
+      opacity: 0.4,
+    });
+
+    const dimWireMat = new THREE.LineBasicMaterial({
+      color: 0x252B33,
+      transparent: true,
+      opacity: 0.2,
+    });
+
+    // Sequential activation timing: K8s core is already active, others activate 400ms apart
+    const activationDelays = [0, 400, 700, 1000, 1300, 1600, 1900, 2200]; // ms
+
+    nodesData.forEach((node, idx) => {
       const nodeSubGroup = new THREE.Group();
       nodeSubGroup.position.set(node.pos[0], node.pos[1], node.pos[2]);
 
@@ -108,19 +136,27 @@ export default function ThreeTopology() {
         geom = new THREE.BoxGeometry(node.size * 1.1, node.size * 1.1, node.size * 1.1);
       }
 
-      const mesh = new THREE.Mesh(geom, node.isPrimary ? activeChassisMat : chassisMat);
+      // Start dim, will activate
+      const startDim = idx > 0;
+      const mesh = new THREE.Mesh(
+        geom,
+        startDim ? dimChassisMat.clone() : (node.isPrimary ? activeChassisMat : chassisMat)
+      );
       nodeSubGroup.add(mesh);
 
-      // Technical wireframe outline
       const wireGeom = new THREE.WireframeGeometry(geom);
-      const wireMesh = new THREE.LineSegments(wireGeom, node.isPrimary ? activeWireMat : wireMat);
+      const wireMesh = new THREE.LineSegments(
+        wireGeom,
+        startDim ? dimWireMat.clone() : (node.isPrimary ? activeWireMat : wireMat)
+      );
       wireMesh.scale.set(1.08, 1.08, 1.08);
       nodeSubGroup.add(wireMesh);
 
-      // Subtle status pip at top of node (realistic LED indicator)
       const pipGeom = new THREE.SphereGeometry(0.2, 8, 8);
       const pipMat = new THREE.MeshBasicMaterial({
-        color: node.isPrimary ? 0x5B8DEF : 0x43B581,
+        color: startDim ? 0x252B33 : (node.isPrimary ? 0x5B8DEF : 0x43B581),
+        transparent: true,
+        opacity: startDim ? 0.3 : 1.0,
       });
       const pip = new THREE.Mesh(pipGeom, pipMat);
       pip.position.set(0, node.size * 0.8, 0);
@@ -133,10 +169,12 @@ export default function ThreeTopology() {
         wire: wireMesh,
         corePip: pip,
         speed: 0.004 + Math.random() * 0.003,
+        activated: !startDim,
+        activateAt: activationDelays[idx],
       });
     });
 
-    // Technical network conduits
+    // Network connections
     const connections: [number, number][] = [
       [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7],
       [1, 5], [1, 2], [3, 4], [3, 6],
@@ -150,6 +188,8 @@ export default function ThreeTopology() {
       curve: THREE.QuadraticBezierCurve3;
       progress: number;
       speed: number;
+      active: boolean;
+      startDelay: number; // ms before this packet starts moving
     }
 
     const packetMeshes: PacketItem[] = [];
@@ -164,7 +204,6 @@ export default function ThreeTopology() {
       const points = curve.getPoints(24);
       const lineGeom = new THREE.BufferGeometry().setFromPoints(points);
 
-      // Subtle, thin enterprise line (not glowing neon)
       const isCoreLine = conn[0] === 0 || conn[1] === 0;
       const lineMat = new THREE.LineBasicMaterial({
         color: isCoreLine ? 0x303741 : 0x252B33,
@@ -174,12 +213,17 @@ export default function ThreeTopology() {
       const line = new THREE.Line(lineGeom, lineMat);
       topologyGroup.add(line);
 
-      // Small, restrained data packet
+      // Only ~60% of connections get animated packets for realism
+      const hasPacket = index % 5 !== 0; // skip every 5th connection
+      if (!hasPacket) {
+        return;
+      }
+
       const pktGeom = new THREE.SphereGeometry(0.14, 6, 6);
       const pktMat = new THREE.MeshBasicMaterial({
         color: index % 2 === 0 ? 0x5B8DEF : 0x729FF5,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0,
       });
       const packet = new THREE.Mesh(pktGeom, pktMat);
       packetGroup.add(packet);
@@ -187,12 +231,14 @@ export default function ThreeTopology() {
       packetMeshes.push({
         mesh: packet,
         curve,
-        progress: (index * 0.12) % 1,
-        speed: 0.002 + Math.random() * 0.002,
+        progress: (index * 0.15) % 1,
+        speed: 0.0018 + Math.random() * 0.002,
+        active: false,
+        startDelay: activationDelays[Math.min(conn[1], activationDelays.length - 1)] + 300,
       });
     });
 
-    // Technical datum grid floor (clean enterprise floor plan)
+    // Grid floor
     const gridHelper = new THREE.GridHelper(48, 32, 0x303741, 0x191E24);
     gridHelper.position.y = -9;
     const gridMat = gridHelper.material as THREE.Material;
@@ -200,7 +246,7 @@ export default function ThreeTopology() {
     gridMat.opacity = 0.35;
     topologyGroup.add(gridHelper);
 
-    // Minimal floating telemetry datum points
+    // Minimal telemetry datum points
     const partCount = 45;
     const partGeom = new THREE.BufferGeometry();
     const partPositions = new Float32Array(partCount * 3);
@@ -219,7 +265,7 @@ export default function ThreeTopology() {
     const particles = new THREE.Points(partGeom, partMat);
     topologyGroup.add(particles);
 
-    // Smooth, controlled mouse movement
+    // Mouse tracking
     let targetRotY = 0;
     let targetRotX = 0;
     const handleMouseMove = (e: MouseEvent) => {
@@ -240,30 +286,71 @@ export default function ThreeTopology() {
     };
     window.addEventListener("resize", handleResize);
 
-    // Controlled, calm animation loop
     const clock = new THREE.Clock();
     let animationFrameId: number;
+    const sceneStartTime = performance.now();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
+      const elapsedMs = performance.now() - sceneStartTime;
+
+      // Sequential node activation
+      nodeMeshes.forEach((item, idx) => {
+        if (!item.activated && elapsedMs >= item.activateAt) {
+          item.activated = true;
+
+          // Swap to active materials
+          const node = nodesData[idx];
+          const targetChassisMat = node.isPrimary ? activeChassisMat : chassisMat;
+          const targetWireMat = node.isPrimary ? activeWireMat : wireMat;
+
+          (item.mesh.material as THREE.MeshStandardMaterial).dispose();
+          item.mesh.material = targetChassisMat;
+
+          (item.wire.material as THREE.LineBasicMaterial).dispose();
+          item.wire.material = targetWireMat;
+
+          const pipMat = item.corePip.material as THREE.MeshBasicMaterial;
+          pipMat.color.setHex(node.isPrimary ? 0x5B8DEF : 0x43B581);
+          pipMat.opacity = 1.0;
+        }
+      });
+
+      // Activate packets after their connected nodes are live
+      packetMeshes.forEach((pkt) => {
+        if (!pkt.active && elapsedMs >= pkt.startDelay) {
+          pkt.active = true;
+          (pkt.mesh.material as THREE.MeshBasicMaterial).opacity = 0.8;
+        }
+        if (pkt.active) {
+          pkt.progress += pkt.speed;
+          if (pkt.progress > 1) pkt.progress = 0;
+          const pt = pkt.curve.getPoint(pkt.progress);
+          pkt.mesh.position.copy(pt);
+        }
+      });
 
       // Slow, steady rotation with smooth damping
-      topologyGroup.rotation.y += 0.001;
+      topologyGroup.rotation.y += 0.0008;
       topologyGroup.rotation.y += (targetRotY - topologyGroup.rotation.y) * 0.03;
       topologyGroup.rotation.x += (targetRotX - topologyGroup.rotation.x) * 0.03;
 
-      nodeMeshes.forEach((item, idx) => {
-        item.mesh.rotation.y += item.speed;
-        item.wire.rotation.y += item.speed;
-        item.group.position.y += Math.sin(elapsedTime * 0.8 + idx) * 0.003;
-      });
+      // Subtle scroll-based camera parallax
+      const sp = scrollRef.current;
+      const targetCamY = 16 - sp * 4; // moves slightly down as user scrolls
+      const targetCamZ = 36 + sp * 4;
+      camera.position.y += (targetCamY - camera.position.y) * 0.04;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.04;
+      camera.lookAt(0, 0, 0);
 
-      packetMeshes.forEach((pkt) => {
-        pkt.progress += pkt.speed;
-        if (pkt.progress > 1) pkt.progress = 0;
-        const pt = pkt.curve.getPoint(pkt.progress);
-        pkt.mesh.position.copy(pt);
+      // Node float
+      nodeMeshes.forEach((item, idx) => {
+        if (item.activated) {
+          item.mesh.rotation.y += item.speed;
+          item.wire.rotation.y += item.speed;
+          item.group.position.y += Math.sin(elapsedTime * 0.8 + idx) * 0.003;
+        }
       });
 
       particles.rotation.y -= 0.0003;

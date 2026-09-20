@@ -78,7 +78,7 @@ export default function DeploymentsPage() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-[#252B33]">
+      <div className="console-enter console-delay-0 flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-[#252B33]">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 font-mono text-[11px] text-[#6F7782]">
             <span className="text-[#5B8DEF] font-medium uppercase">Continuous Delivery Engine</span>

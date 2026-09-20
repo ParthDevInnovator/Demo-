@@ -117,7 +117,7 @@ export default function CloudOverviewDashboard() {
   return (
     <div className="flex flex-col w-full gap-5" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Command Header & Operational Status HUD */}
-      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 pb-4" style={{ borderBottom: '1px solid rgba(30,38,48,0.8)' }}>
+      <div className="console-enter console-delay-0 flex flex-col xl:flex-row xl:items-end justify-between gap-4 pb-4" style={{ borderBottom: '1px solid rgba(30,38,48,0.8)' }}>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 text-[11px] font-mono" style={{ color: '#6B7585' }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#3DD68C', boxShadow: '0 0 0 2px rgba(61,214,140,0.2)' }} />
@@ -158,8 +158,8 @@ export default function CloudOverviewDashboard() {
           { label: 'Memory Pool', val: '61%', delta: '78.2 GB', deltaColor: '#9BA5B4', bar: '61%', barColor: '#4B7FEF', sub: '128 GB', dot: false },
           { label: 'Requests', val: '2.4M', delta: '24.8k/s', deltaColor: '#3DD68C', bar: '74%', barColor: '#3DD68C', sub: 'HTTP/3', dot: false },
           { label: 'Active Services', val: '8 / 8', delta: '100%', deltaColor: '#3DD68C', bar: '100%', barColor: '#3DD68C', sub: 'SYNCED', dot: false },
-        ].map((metric) => (
-          <div key={metric.label} className="p-4 rounded-xl flex flex-col gap-2 transition-all" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.9)' }}>
+        ].map((metric, idx) => (
+          <div key={metric.label} className={`console-enter console-delay-${idx + 2} card-interactive p-4 rounded-xl flex flex-col gap-2`} style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.9)' }}>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: '#6B7585' }}>{metric.label}</span>
               {metric.dot
@@ -179,7 +179,7 @@ export default function CloudOverviewDashboard() {
       </div>
 
       {/* Real-Time Telemetry & Vector Analytics Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="console-enter console-delay-7 grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Main Traffic & Compute Waveforms (2 cols) */}
         <div className="xl:col-span-2 p-5 rounded-2xl flex flex-col gap-4" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.9)' }}>
           <div className="flex flex-wrap items-center justify-between gap-3">

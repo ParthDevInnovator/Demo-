@@ -116,7 +116,7 @@ export default function ComputeFleetPage() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* Header Banner */}
-      <div className="w-full rounded-md bg-[#0F1216] p-5 border border-[#252B33]">
+      <div className="console-enter console-delay-0 w-full rounded-md bg-[#0F1216] p-5 border border-[#252B33]">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           <div className="flex flex-col gap-1 max-w-2xl">
             <div className="flex items-center gap-2 text-[11px] font-mono">
@@ -174,7 +174,7 @@ export default function ComputeFleetPage() {
         </div>
 
         {/* Telemetry Metric Row */}
-        <div className="mt-5 grid grid-cols-2 md:grid-cols-5 gap-3 font-mono text-xs pt-4 border-t border-[#252B33]">
+        <div className="console-enter console-delay-1 mt-5 grid grid-cols-2 md:grid-cols-5 gap-3 font-mono text-xs pt-4 border-t border-[#252B33]">
           <div className="p-3 rounded bg-[#090B0E] border border-[#252B33] flex flex-col justify-between">
             <span className="text-[11px] text-[#6F7782]">RUNNING INSTANCES</span>
             <div className="my-1 flex items-baseline gap-1">
@@ -294,7 +294,7 @@ export default function ComputeFleetPage() {
       </div>
 
       {/* Fleet Table & Inspection Split */}
-      <div className="grid grid-cols-1 2xl:grid-cols-12 gap-4 items-start">
+      <div className="console-enter console-delay-2 grid grid-cols-1 2xl:grid-cols-12 gap-4 items-start">
         {/* Table (Span 8) */}
         <div className="2xl:col-span-8 overflow-x-auto rounded-md bg-[#0F1216] border border-[#252B33]">
           <table className="w-full text-left border-collapse font-mono text-xs">
@@ -310,13 +310,14 @@ export default function ComputeFleetPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#252B33]">
-              {filteredNodes.map((node) => {
+              {filteredNodes.map((node, rowIdx) => {
                 const isSelected = selectedRow === node.id;
+                const rowDelayClass = rowIdx < 8 ? `row-enter row-delay-${Math.min(rowIdx, 7)}` : '';
                 return (
                   <tr
                     key={node.id}
                     onClick={() => setSelectedRow(node.id)}
-                    className={`cursor-pointer transition-colors ${
+                    className={`${rowDelayClass} cursor-pointer transition-colors ${
                       isSelected
                         ? "bg-[#131B2A] border-l-2 border-[#5B8DEF]"
                         : "hover:bg-[#14181D]"

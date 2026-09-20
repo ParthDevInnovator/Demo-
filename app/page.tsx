@@ -1,16 +1,160 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import NexusLogo from "@/components/NexusLogo";
 import ThreeTopology from "@/components/ThreeTopology";
+import ScrollReveal from "@/components/motion/ScrollReveal";
+import { useCountUp } from "@/components/motion/useCountUp";
+
+// ── Metric Counter component ─────────────────────────────────────────────────
+function AnimatedMetric({
+  target,
+  suffix = "",
+  prefix = "",
+  decimals = 0,
+  duration = 1400,
+}: {
+  target: number;
+  suffix?: string;
+  prefix?: string;
+  decimals?: number;
+  duration?: number;
+}) {
+  const { ref, formatted } = useCountUp({ target, suffix, prefix, decimals, duration });
+  return <span ref={ref as React.Ref<HTMLSpanElement>}>{formatted}</span>;
+}
+
+// ── Animated progress bar ─────────────────────────────────────────────────────
+function AnimatedBar({ pct, color }: { pct: number; color: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setStarted(true); obs.disconnect(); }
+    }, { threshold: 0.2 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(30,38,48,0.8)' }}>
+      <div
+        className="h-full rounded-full"
+        style={{
+          width: started ? `${pct}%` : '0%',
+          background: `linear-gradient(90deg, ${color}77, ${color})`,
+          transition: started ? 'width 0.9s cubic-bezier(0.22,1,0.36,1)' : 'none',
+        }}
+      />
+    </div>
+  );
+}
+
+// ── Scroll progress bar ───────────────────────────────────────────────────────
+function ScrollProgressBar() {
+  const barRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onScroll = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = max > 0 ? window.scrollY / max : 0;
+      if (barRef.current) {
+        barRef.current.style.transform = `scaleX(${progress})`;
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  return <div ref={barRef} className="scroll-progress-bar" />;
+}
+
+// ── Hero scroll parallax hook ─────────────────────────────────────────────────
+function useHeroScrollParallax() {
+  const [scrollY, setScrollY] = useState(0);
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  return scrollY;
+}
+
+// ── Deployment pipeline animation ────────────────────────────────────────────
+const PIPELINE_STEPS = [
+  { step: "1. Build", desc: "Cached Docker layer", status: "✓" },
+  { step: "2. Tests", desc: "142 QA suites passed", status: "✓" },
+  { step: "3. Security", desc: "0 CVEs detected", status: "✓" },
+  { step: "4. Canary", desc: "10% traffic verified", status: "✓" },
+  { step: "5. Production", desc: "12 regions live", status: "✓", active: true },
+];
+
+function DeploymentPipeline() {
+  const [activeStep, setActiveStep] = useState(-1);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        obs.disconnect();
+        // Sequentially activate each step
+        PIPELINE_STEPS.forEach((_, i) => {
+          setTimeout(() => setActiveStep(i), i * 420);
+        });
+      }
+    }, { threshold: 0.3 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="grid grid-cols-1 sm:grid-cols-5 gap-3 font-mono text-xs">
+      {PIPELINE_STEPS.map((item, i) => (
+        <div
+          key={item.step}
+          className={`pipeline-step p-4 rounded-xl flex flex-col gap-2${activeStep >= i ? ' is-active' : ''}`}
+          style={{
+            background: item.active && activeStep >= i
+              ? 'linear-gradient(145deg, #111B2E 0%, #0D1520 100%)'
+              : activeStep >= i ? '#0D1117' : 'rgba(13,17,23,0.4)',
+            border: item.active && activeStep >= i
+              ? '1px solid rgba(75,127,239,0.3)'
+              : activeStep >= i ? '1px solid rgba(30,38,48,0.8)' : '1px solid rgba(30,38,48,0.4)',
+            boxShadow: item.active && activeStep >= i ? '0 0 20px rgba(75,127,239,0.08)' : 'none',
+            opacity: activeStep >= i ? 1 : 0.35,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-xs text-white">{item.step}</span>
+            <span style={{ color: activeStep >= i ? '#3DD68C' : '#4B5568' }}>
+              {activeStep >= i ? item.status : '○'}
+            </span>
+          </div>
+          <span className="text-[10px] text-[#6B7585]">{item.desc}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function PlatformOverviewPage() {
   const [activeConsoleTab, setActiveConsoleTab] = useState("Overview");
   const [activeTelemetryTab, setActiveTelemetryTab] = useState("Metrics");
+  const heroScrollY = useHeroScrollParallax();
+  // topology scroll progress (0-1 over first ~600px)
+  const topoScrollProgress = Math.min(heroScrollY / 600, 1);
+
+  // Hero exit parallax — subtle scale+opacity+blur as user scrolls
+  const heroExitScale = 1 - Math.min(heroScrollY / 1200, 0.04);
+  const heroExitOpacity = 1 - Math.min(heroScrollY / 800, 0.35);
+  const heroExitBlur = Math.min(heroScrollY / 400, 1.5);
 
   return (
     <div className="bg-[#070A0D] text-[#F0F4FF] antialiased min-h-screen" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {/* Scroll progress indicator */}
+      <ScrollProgressBar />
       {/* Fixed Header */}
       <header className="fixed top-0 inset-x-0 z-50" style={{ background: 'rgba(7,10,13,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(30,38,48,0.8)' }}>
         <div className="h-14 w-full px-6 flex items-center justify-between max-w-screen-2xl mx-auto">
@@ -54,13 +198,23 @@ export default function PlatformOverviewPage() {
 
       <main className="w-full pt-14">
         {/* SECTION 1: HERO */}
-        <section className="relative w-full overflow-hidden px-6 pb-20 pt-12" style={{ background: 'radial-gradient(ellipse 90% 70% at 50% -5%, rgba(75,127,239,0.15) 0%, transparent 65%), radial-gradient(ellipse 40% 40% at 85% 60%, rgba(61,214,140,0.06) 0%, transparent 60%), #070A0D' }}>
+        <section
+          className="relative w-full overflow-hidden px-6 pb-20 pt-12"
+          style={{
+            background: 'radial-gradient(ellipse 90% 70% at 50% -5%, rgba(75,127,239,0.15) 0%, transparent 65%), radial-gradient(ellipse 40% 40% at 85% 60%, rgba(61,214,140,0.06) 0%, transparent 60%), #070A0D',
+            transform: `scale(${heroExitScale})`,
+            opacity: heroExitOpacity,
+            filter: `blur(${heroExitBlur}px)`,
+            transformOrigin: 'center top',
+            willChange: 'transform, opacity, filter',
+          }}
+        >
           {/* Grid pattern */}
           <div className="absolute inset-0 bg-grid-pattern opacity-100 pointer-events-none" />
 
           <div className="relative mx-auto max-w-7xl flex flex-col gap-10">
             {/* Status bar */}
-            <div className="mx-auto w-full max-w-3xl rounded-xl overflow-hidden" style={{ background: 'rgba(13,17,23,0.8)', border: '1px solid rgba(30,38,48,0.9)', backdropFilter: 'blur(10px)' }}>
+            <div className="hero-enter hero-delay-0 mx-auto w-full max-w-3xl rounded-xl overflow-hidden" style={{ background: 'rgba(13,17,23,0.8)', border: '1px solid rgba(30,38,48,0.9)', backdropFilter: 'blur(10px)' }}>
               <div className="px-4 py-2.5 flex items-center justify-between border-b" style={{ borderColor: 'rgba(30,38,48,0.8)' }}>
                 <div className="flex items-center gap-2">
                   <span className="dot-live" />
@@ -87,27 +241,27 @@ export default function PlatformOverviewPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
               {/* Left: Headline, CTA */}
               <div className="lg:col-span-5 flex flex-col gap-6">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full w-fit" style={{ background: 'rgba(75,127,239,0.1)', border: '1px solid rgba(75,127,239,0.2)' }}>
+                <div className="hero-enter hero-delay-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full w-fit" style={{ background: 'rgba(75,127,239,0.1)', border: '1px solid rgba(75,127,239,0.2)' }}>
                   <span className="w-1.5 h-1.5 rounded-full bg-[#4B7FEF]" />
                   <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: '#6B9AF8' }}>
                     Zero-Trust Control Plane · v4.1
                   </span>
                 </div>
 
-                <h1 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '3.2rem', lineHeight: '1.08', fontWeight: 800, letterSpacing: '-0.03em' }} className="text-white">
+                <h1 className="hero-enter hero-delay-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '3.2rem', lineHeight: '1.08', fontWeight: 800, letterSpacing: '-0.03em', color: 'white' }}>
                   Your infrastructure.{" "}
                   <span className="text-gradient-blue">One control plane.</span>
                 </h1>
 
-                <p className="text-[#9BA5B4] text-base leading-relaxed">
+                <p className="hero-enter hero-delay-3 text-[#9BA5B4] text-base leading-relaxed">
                   Deploy, monitor, secure, and scale your entire distributed cloud fabric from one
                   unified command workspace — with zero operational drag.
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="hero-enter hero-delay-4 flex flex-wrap items-center gap-3">
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 font-semibold px-5 py-2.5 rounded-lg text-white text-sm transition-all"
+                    className="btn-nexus-primary inline-flex items-center gap-2 font-semibold px-5 py-2.5 rounded-lg text-white text-sm"
                     style={{ background: 'linear-gradient(135deg, #4B7FEF 0%, #3560BE 100%)', boxShadow: '0 2px 20px rgba(75,127,239,0.35)' }}
                   >
                     Start building
@@ -115,7 +269,7 @@ export default function PlatformOverviewPage() {
                   </Link>
                   <Link
                     href="/compute"
-                    className="inline-flex items-center gap-2 font-medium px-5 py-2.5 rounded-lg text-[#F0F4FF] text-sm transition-all hover:bg-[#131920]"
+                    className="btn-nexus-outline inline-flex items-center gap-2 font-medium px-5 py-2.5 rounded-lg text-[#F0F4FF] text-sm hover:bg-[#131920]"
                     style={{ border: '1px solid rgba(30,38,48,0.9)' }}
                   >
                     View live demo
@@ -124,7 +278,7 @@ export default function PlatformOverviewPage() {
                 </div>
 
                 {/* KPIs */}
-                <div className="grid grid-cols-3 gap-4 pt-4" style={{ borderTop: '1px solid rgba(30,38,48,0.8)' }}>
+                <div className="hero-enter hero-delay-5 grid grid-cols-3 gap-4 pt-4" style={{ borderTop: '1px solid rgba(30,38,48,0.8)' }}>
                   {[
                     { val: "99.999%", label: "Guaranteed SLA" },
                     { val: "12 Regions", label: "Active Fabric" },
@@ -139,8 +293,8 @@ export default function PlatformOverviewPage() {
               </div>
 
               {/* Right: 3D Topology */}
-              <div className="lg:col-span-7 relative w-full h-[520px] rounded-2xl overflow-hidden" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)', boxShadow: '0 0 0 1px rgba(75,127,239,0.05), 0 24px 80px rgba(0,0,0,0.6)' }}>
-                <ThreeTopology />
+              <div className="hero-enter-scale hero-delay-2 lg:col-span-7 relative w-full h-[520px] rounded-2xl overflow-hidden" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)', boxShadow: '0 0 0 1px rgba(75,127,239,0.05), 0 24px 80px rgba(0,0,0,0.6)' }}>
+                <ThreeTopology scrollProgress={topoScrollProgress} />
 
                 {/* HUD overlays */}
                 <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 pointer-events-none">
@@ -168,14 +322,14 @@ export default function PlatformOverviewPage() {
         {/* SECTION 2: TRUST TICKER */}
         <section className="w-full py-6" style={{ background: '#0D1117', borderTop: '1px solid rgba(30,38,48,0.6)', borderBottom: '1px solid rgba(30,38,48,0.6)' }}>
           <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-            <span className="text-[11px] font-mono uppercase tracking-widest text-[#6B7585]">
+            <ScrollReveal direction="left" className="text-[11px] font-mono uppercase tracking-widest text-[#6B7585]" as="span">
               Trusted by frontier infrastructure teams
-            </span>
-            <div className="flex flex-wrap items-center gap-8 font-mono text-xs">
+            </ScrollReveal>
+            <ScrollReveal direction="right" className="flex flex-wrap items-center gap-8 font-mono text-xs">
               {["CYBERDYNE", "AETHER CLOUD", "HYPERION", "SYNAPSE IO", "CHRONOS", "VORTEX"].map((brand, i) => (
                 <span key={brand} className={`${i % 2 === 0 ? "font-bold text-[#F0F4FF]" : "text-[#4B5568]"}`}>{brand}</span>
               ))}
-            </div>
+            </ScrollReveal>
           </div>
         </section>
 
@@ -183,7 +337,7 @@ export default function PlatformOverviewPage() {
         <section className="w-full py-20" style={{ background: '#070A0D', borderBottom: '1px solid rgba(30,38,48,0.6)' }}>
           <div className="mx-auto max-w-7xl px-6 flex flex-col gap-10">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-              <div className="flex flex-col gap-2 max-w-xl">
+              <ScrollReveal direction="left" className="flex flex-col gap-2 max-w-xl">
                 <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: '#4B7FEF' }}>
                   Unified Operational Layer
                 </span>
@@ -194,14 +348,15 @@ export default function PlatformOverviewPage() {
                   From cluster hypervisors to edge proxy gateways, coordinate zero-trust workloads
                   without juggling disparate provider dashboards.
                 </p>
-              </div>
-              <div className="flex items-center gap-2 font-mono text-xs">
+              </ScrollReveal>
+              <ScrollReveal direction="right" className="flex items-center gap-2 font-mono text-xs">
                 <span className="text-[#6B7585]">Active Plane:</span>
                 <span className="text-[#F0F4FF] font-medium">global-west-edge.nexus.internal</span>
-              </div>
+              </ScrollReveal>
             </div>
 
             {/* Console Mockup */}
+            <ScrollReveal direction="up" threshold={0.05}>
             <div className="w-full rounded-2xl overflow-hidden flex flex-col" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)', boxShadow: '0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(75,127,239,0.04)' }}>
               {/* Window Chrome */}
               <div className="h-11 px-4 flex items-center justify-between" style={{ background: '#131920', borderBottom: '1px solid rgba(30,38,48,0.8)' }}>
@@ -328,13 +483,14 @@ export default function PlatformOverviewPage() {
                 </div>
               </div>
             </div>
+            </ScrollReveal>
           </div>
         </section>
 
         {/* SECTION 4: INFRASTRUCTURE TOPOLOGY */}
         <section className="w-full py-20" style={{ background: 'radial-gradient(ellipse 70% 60% at 20% 50%, rgba(75,127,239,0.06) 0%, transparent 60%), #0D1117', borderBottom: '1px solid rgba(30,38,48,0.6)' }}>
           <div className="mx-auto max-w-7xl px-6 flex flex-col gap-10">
-            <div className="max-w-xl flex flex-col gap-2">
+            <ScrollReveal direction="left" className="max-w-xl flex flex-col gap-2">
               <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: '#4B7FEF' }}>Zero-Latency Topology</span>
               <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '2rem', fontWeight: 700, letterSpacing: '-0.02em' }} className="text-white">
                 See your entire infrastructure at a glance.
@@ -342,7 +498,7 @@ export default function PlatformOverviewPage() {
               <p className="text-sm text-[#9BA5B4] leading-relaxed">
                 Real-time dynamic visualization of interconnected microservices, managed datastores, and ingress edge conduits.
               </p>
-            </div>
+            </ScrollReveal>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Node Grid */}
@@ -360,10 +516,10 @@ export default function PlatformOverviewPage() {
                     { title: "WORKER POOL", desc: "Async Job Consumers", metric: "0 pending", icon: "precision_manufacturing" },
                     { title: "EDGE CDN", desc: "Anycast 310 Points", metric: "p99 12ms Edge", icon: "public" },
                     { title: "KUBERNETES", desc: "Managed K8s v1.29", metric: "Autoscale (42-120)", icon: "hub" },
-                  ].map((node) => (
+                  ].map((node, i) => (
+                    <ScrollReveal key={node.title} direction={i % 3 === 2 ? "right" : i % 2 === 0 ? "up" : "left"} delay={i * 60}>
                     <div
-                      key={node.title}
-                      className="p-3.5 rounded-xl flex flex-col gap-1.5 transition-all cursor-pointer group"
+                      className="card-interactive p-3.5 rounded-xl flex flex-col gap-1.5 cursor-pointer group h-full"
                       style={{ background: '#131920', border: '1px solid rgba(30,38,48,0.8)' }}
                       onMouseEnter={(e) => {
                         (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(75,127,239,0.3)';
@@ -382,6 +538,7 @@ export default function PlatformOverviewPage() {
                       <span className="text-[10px] text-[#6B7585]">{node.desc}</span>
                       <span className="text-[10px] font-mono text-[#9BA5B4] mt-0.5">{node.metric}</span>
                     </div>
+                    </ScrollReveal>
                   ))}
                 </div>
 
@@ -392,7 +549,7 @@ export default function PlatformOverviewPage() {
               </div>
 
               {/* Health */}
-              <div className="rounded-2xl p-6 flex flex-col justify-between" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)' }}>
+              <ScrollReveal direction="right" className="rounded-2xl p-6 flex flex-col justify-between" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)' }}>
                 <div className="flex flex-col gap-5">
                   <div className="flex items-center justify-between pb-3" style={{ borderBottom: '1px solid rgba(30,38,48,0.8)' }}>
                     <h3 className="text-xs font-semibold text-white">Infrastructure Health</h3>
@@ -401,19 +558,19 @@ export default function PlatformOverviewPage() {
 
                   <div className="flex flex-col gap-4 font-mono text-xs">
                     {[
-                      { label: "CPU ALLOCATION", val: "42%", pct: 42, color: "#4B7FEF" },
-                      { label: "MEMORY FOOTPRINT", val: "61%", pct: 61, color: "#4B7FEF" },
-                      { label: "24H REQUEST VOLUME", val: "2.4M", pct: 84, color: "#3DD68C" },
-                      { label: "MONTHLY UPTIME", val: "99.99%", pct: 99.99, color: "#3DD68C" },
+                      { label: "CPU ALLOCATION", target: 42, suffix: "%", pct: 42, color: "#4B7FEF" },
+                      { label: "MEMORY FOOTPRINT", target: 61, suffix: "%", pct: 61, color: "#4B7FEF" },
+                      { label: "24H REQUEST VOLUME", target: 2.4, suffix: "M", decimals: 1, pct: 84, color: "#3DD68C" },
+                      { label: "MONTHLY UPTIME", target: 99.99, suffix: "%", decimals: 2, pct: 99.99, color: "#3DD68C" },
                     ].map((item) => (
                       <div key={item.label} className="flex flex-col gap-1.5">
                         <div className="flex justify-between text-[10px]">
                           <span className="text-[#6B7585]">{item.label}</span>
-                          <span className="text-white font-semibold">{item.val}</span>
+                          <span className="text-white font-semibold">
+                            <AnimatedMetric target={item.target} suffix={item.suffix} decimals={item.decimals ?? 0} />
+                          </span>
                         </div>
-                        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(30,38,48,0.8)' }}>
-                          <div className="h-full rounded-full" style={{ width: `${item.pct}%`, background: `linear-gradient(90deg, ${item.color}77, ${item.color})` }} />
-                        </div>
+                        <AnimatedBar pct={item.pct} color={item.color} />
                       </div>
                     ))}
                   </div>
@@ -426,7 +583,7 @@ export default function PlatformOverviewPage() {
                   </div>
                   <span className="material-symbols-outlined text-xl" style={{ color: '#3DD68C' }}>verified</span>
                 </div>
-              </div>
+              </ScrollReveal>
             </div>
           </div>
         </section>
@@ -434,7 +591,7 @@ export default function PlatformOverviewPage() {
         {/* SECTION 5: CI/CD PIPELINE */}
         <section className="w-full py-20" style={{ background: '#070A0D', borderBottom: '1px solid rgba(30,38,48,0.6)' }}>
           <div className="mx-auto max-w-7xl px-6 flex flex-col gap-10">
-            <div className="max-w-xl flex flex-col gap-2">
+            <ScrollReveal direction="up" className="max-w-xl flex flex-col gap-2">
               <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: '#4B7FEF' }}>Instant CI/CD Delivery</span>
               <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '2rem', fontWeight: 700, letterSpacing: '-0.02em' }} className="text-white">
                 From commit to production in minutes.
@@ -443,33 +600,9 @@ export default function PlatformOverviewPage() {
                 Push your code. NEXUS triggers parallel container compiles, runs ephemeral security
                 test suites, and orchestrates zero-downtime blue/green rollouts.
               </p>
-            </div>
+            </ScrollReveal>
 
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 font-mono text-xs">
-              {[
-                { step: "1. Build", desc: "Cached Docker layer", status: "✓" },
-                { step: "2. Tests", desc: "142 QA suites passed", status: "✓" },
-                { step: "3. Security", desc: "0 CVEs detected", status: "✓" },
-                { step: "4. Canary", desc: "10% traffic verified", status: "✓" },
-                { step: "5. Production", desc: "12 regions live", status: "✓", active: true },
-              ].map((item) => (
-                <div
-                  key={item.step}
-                  className="p-4 rounded-xl flex flex-col gap-2"
-                  style={{
-                    background: item.active ? 'linear-gradient(145deg, #111B2E 0%, #0D1520 100%)' : '#0D1117',
-                    border: item.active ? '1px solid rgba(75,127,239,0.3)' : '1px solid rgba(30,38,48,0.8)',
-                    boxShadow: item.active ? '0 0 20px rgba(75,127,239,0.08)' : 'none',
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-xs text-white">{item.step}</span>
-                    <span style={{ color: '#3DD68C' }}>{item.status}</span>
-                  </div>
-                  <span className="text-[10px] text-[#6B7585]">{item.desc}</span>
-                </div>
-              ))}
-            </div>
+            <DeploymentPipeline />
 
             <div className="p-5 rounded-2xl flex flex-col gap-5" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)' }}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -506,7 +639,7 @@ export default function PlatformOverviewPage() {
         <section className="w-full py-20" style={{ background: 'radial-gradient(ellipse 60% 50% at 80% 50%, rgba(61,214,140,0.05) 0%, transparent 60%), #0D1117', borderBottom: '1px solid rgba(30,38,48,0.6)' }}>
           <div className="mx-auto max-w-7xl px-6 flex flex-col gap-10">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-              <div className="max-w-xl flex flex-col gap-2">
+              <ScrollReveal direction="left" className="max-w-xl flex flex-col gap-2">
                 <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: '#4B7FEF' }}>Telemetry &amp; Inspection</span>
                 <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '2rem', fontWeight: 700, letterSpacing: '-0.02em' }} className="text-white">
                   Real-time operational observability.
@@ -515,7 +648,7 @@ export default function PlatformOverviewPage() {
                   Correlate metrics, structured distributed logs, and OpenTelemetry spans across
                   global clusters with instant root cause analysis.
                 </p>
-              </div>
+              </ScrollReveal>
               <div className="flex items-center rounded-xl p-1 font-mono text-xs" style={{ background: '#070A0D', border: '1px solid rgba(30,38,48,0.8)' }}>
                 {["Metrics", "Logs", "Traces", "Alerts"].map((tab) => (
                   <button
@@ -530,6 +663,7 @@ export default function PlatformOverviewPage() {
               </div>
             </div>
 
+            <ScrollReveal direction="up" threshold={0.08}>
             <div className="rounded-2xl p-5 flex flex-col gap-3 font-mono text-xs" style={{ background: '#070A0D', border: '1px solid rgba(30,38,48,0.8)' }}>
               <div className="flex items-center justify-between pb-3 text-[11px]" style={{ borderBottom: '1px solid rgba(30,38,48,0.8)' }}>
                 <div className="flex items-center gap-2">
@@ -545,7 +679,7 @@ export default function PlatformOverviewPage() {
                   { time: "10:42:02.441", level: "WARN", levelColor: "#E8AC3B", svc: "redis", msg: "cache miss         12ms  key=session_tok_89a" },
                   { time: "10:42:03.012", level: "INFO", levelColor: "#4B7FEF", svc: "worker", msg: "job processed      82ms  queue=notifications" },
                 ].map((log, i) => (
-                  <div key={i} className="flex items-center gap-3 py-1 px-2 rounded-lg hover:bg-[#131920] transition-colors">
+                  <div key={i} className={`log-enter flex items-center gap-3 py-1 px-2 rounded-lg hover:bg-[#131920] transition-colors`} style={{ animationDelay: `${i * 100}ms` }}>
                     <span className="text-[#6B7585]">{log.time}</span>
                     <span className="font-semibold" style={{ color: log.levelColor, minWidth: 32 }}>{log.level}</span>
                     <span className="text-white">{log.svc}</span>
@@ -554,13 +688,14 @@ export default function PlatformOverviewPage() {
                 ))}
               </div>
             </div>
+            </ScrollReveal>
           </div>
         </section>
 
         {/* SECTION 7: PRICING */}
         <section id="pricing" className="w-full py-20" style={{ background: '#070A0D', borderBottom: '1px solid rgba(30,38,48,0.6)' }}>
           <div className="mx-auto max-w-7xl px-6 flex flex-col gap-10">
-            <div className="max-w-xl flex flex-col gap-2">
+            <ScrollReveal direction="up" className="max-w-xl flex flex-col gap-2">
               <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: '#4B7FEF' }}>Predictable Capacity</span>
               <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '2rem', fontWeight: 700, letterSpacing: '-0.02em' }} className="text-white">
                 Scale without surprise invoices.
@@ -568,11 +703,11 @@ export default function PlatformOverviewPage() {
               <p className="text-sm text-[#9BA5B4] leading-relaxed">
                 Flat-rate control plane licensing combined with transparent pass-through bare-metal compute units.
               </p>
-            </div>
+            </ScrollReveal>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
               {/* Starter */}
-              <div className="p-6 rounded-2xl flex flex-col justify-between" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)' }}>
+              <ScrollReveal direction="left" delay={0} className="p-6 rounded-2xl flex flex-col justify-between" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)' }}>
                 <div className="flex flex-col gap-5">
                   <div>
                     <span className="text-[10px] font-mono uppercase tracking-widest text-[#6B7585]">STARTER</span>
@@ -591,13 +726,13 @@ export default function PlatformOverviewPage() {
                     ))}
                   </div>
                 </div>
-                <Link href="/dashboard" className="mt-6 w-full py-2.5 text-center rounded-xl text-sm font-medium text-white transition-all hover:bg-[#1A2030]" style={{ background: '#131920', border: '1px solid rgba(30,38,48,0.8)' }}>
+                <Link href="/dashboard" className="btn-nexus-outline mt-6 w-full py-2.5 text-center rounded-xl text-sm font-medium text-white hover:bg-[#1A2030]" style={{ background: '#131920', border: '1px solid rgba(30,38,48,0.8)' }}>
                   Get Started Free
                 </Link>
-              </div>
+              </ScrollReveal>
 
               {/* Professional — featured */}
-              <div className="p-6 rounded-2xl flex flex-col justify-between relative" style={{ background: 'linear-gradient(145deg, #111B2E 0%, #0D1520 100%)', border: '1px solid rgba(75,127,239,0.3)', boxShadow: '0 0 40px rgba(75,127,239,0.1)' }}>
+              <ScrollReveal direction="up" delay={80} className="p-6 rounded-2xl flex flex-col justify-between relative" style={{ background: 'linear-gradient(145deg, #111B2E 0%, #0D1520 100%)', border: '1px solid rgba(75,127,239,0.3)', boxShadow: '0 0 40px rgba(75,127,239,0.1)' }}>
                 <div className="absolute -top-3 right-5 px-3 py-1 rounded-full text-white text-[10px] font-mono font-bold" style={{ background: 'linear-gradient(135deg, #4B7FEF, #3560BE)', boxShadow: '0 2px 10px rgba(75,127,239,0.4)' }}>
                   RECOMMENDED
                 </div>
@@ -619,13 +754,13 @@ export default function PlatformOverviewPage() {
                     ))}
                   </div>
                 </div>
-                <Link href="/dashboard" className="mt-6 w-full py-2.5 text-center rounded-xl text-sm font-semibold text-white transition-all" style={{ background: 'linear-gradient(135deg, #4B7FEF, #3560BE)', boxShadow: '0 2px 16px rgba(75,127,239,0.3)' }}>
+                <Link href="/dashboard" className="btn-nexus-primary mt-6 w-full py-2.5 text-center rounded-xl text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #4B7FEF, #3560BE)', boxShadow: '0 2px 16px rgba(75,127,239,0.3)' }}>
                   Start Professional Trial
                 </Link>
-              </div>
+              </ScrollReveal>
 
               {/* Enterprise */}
-              <div className="p-6 rounded-2xl flex flex-col justify-between" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)' }}>
+              <ScrollReveal direction="right" delay={160} className="p-6 rounded-2xl flex flex-col justify-between" style={{ background: '#0D1117', border: '1px solid rgba(30,38,48,0.8)' }}>
                 <div className="flex flex-col gap-5">
                   <div>
                     <span className="text-[10px] font-mono uppercase tracking-widest text-[#6B7585]">ENTERPRISE</span>
@@ -643,31 +778,33 @@ export default function PlatformOverviewPage() {
                     ))}
                   </div>
                 </div>
-                <Link href="/dashboard" className="mt-6 w-full py-2.5 text-center rounded-xl text-sm font-medium text-white transition-all hover:bg-[#1A2030]" style={{ background: '#131920', border: '1px solid rgba(30,38,48,0.8)' }}>
+                <Link href="/dashboard" className="btn-nexus-outline mt-6 w-full py-2.5 text-center rounded-xl text-sm font-medium text-white hover:bg-[#1A2030]" style={{ background: '#131920', border: '1px solid rgba(30,38,48,0.8)' }}>
                   Contact Enterprise Sales
                 </Link>
-              </div>
+              </ScrollReveal>
             </div>
           </div>
         </section>
 
         {/* SECTION 8: FINAL CTA */}
         <section className="w-full py-20 relative overflow-hidden" style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(75,127,239,0.1) 0%, transparent 70%), #0D1117' }}>
-          <div className="mx-auto max-w-3xl px-6 text-center flex flex-col items-center gap-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ background: 'rgba(61,214,140,0.1)', border: '1px solid rgba(61,214,140,0.2)' }}>
+          <ScrollReveal direction="up" className="mx-auto max-w-3xl px-6 text-center flex flex-col items-center gap-6">
+            <ScrollReveal direction="up" delay={0} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ background: 'rgba(61,214,140,0.1)', border: '1px solid rgba(61,214,140,0.2)' }}>
               <span className="dot-live" />
               <span className="text-[11px] font-mono" style={{ color: '#3DD68C' }}>48 clusters running globally right now</span>
-            </div>
-            <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1 }} className="text-white">
-              Build infrastructure that disappears into the background.
-            </h2>
-            <p className="text-base text-[#9BA5B4] max-w-xl leading-relaxed">
+            </ScrollReveal>
+            <ScrollReveal direction="up" delay={80}>
+              <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1 }} className="text-white">
+                Build infrastructure that disappears into the background.
+              </h2>
+            </ScrollReveal>
+            <ScrollReveal direction="up" delay={160} className="text-base text-[#9BA5B4] max-w-xl leading-relaxed" as="p">
               Spin up your next cluster in 60 seconds. Experience the speed of a modern developer control plane.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            </ScrollReveal>
+            <ScrollReveal direction="up" delay={240} className="flex flex-wrap items-center justify-center gap-3">
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 font-semibold px-6 py-3 rounded-xl text-white text-sm transition-all"
+                className="btn-nexus-primary inline-flex items-center gap-2 font-semibold px-6 py-3 rounded-xl text-white text-sm"
                 style={{ background: 'linear-gradient(135deg, #4B7FEF 0%, #3560BE 100%)', boxShadow: '0 4px 24px rgba(75,127,239,0.35)' }}
               >
                 Start building free
@@ -675,13 +812,13 @@ export default function PlatformOverviewPage() {
               </Link>
               <Link
                 href="/compute"
-                className="inline-flex items-center gap-2 font-medium px-6 py-3 rounded-xl text-[#F0F4FF] text-sm transition-all hover:bg-[#131920]"
+                className="btn-nexus-outline inline-flex items-center gap-2 font-medium px-6 py-3 rounded-xl text-[#F0F4FF] text-sm hover:bg-[#131920]"
                 style={{ border: '1px solid rgba(30,38,48,0.9)' }}
               >
                 Talk to sales
               </Link>
-            </div>
-          </div>
+            </ScrollReveal>
+          </ScrollReveal>
         </section>
       </main>
 

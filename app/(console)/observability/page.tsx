@@ -62,7 +62,7 @@ export default function ObservabilityPage() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* Top Telemetry Command Strip */}
-      <section className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-[#0F1216] p-3 rounded-md border border-[#252B33] font-mono text-xs">
+      <section className="console-enter console-delay-0 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-[#0F1216] p-3 rounded-md border border-[#252B33] font-mono text-xs">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2 px-2 py-1 rounded bg-[#090B0E] border border-[#252B33]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#43B581]" />

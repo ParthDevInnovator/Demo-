@@ -78,10 +78,11 @@ export default function ConsoleSidebar() {
         {/* Cluster Switcher */}
         <div className="p-3">
           <button
-            className="w-full flex items-center justify-between p-3 rounded-xl transition-colors text-left group"
+            className="w-full flex items-center justify-between p-3 rounded-xl text-left group"
             style={{
               background: '#0D1117',
               border: '1px solid rgba(30,38,48,0.9)',
+              transition: 'background 0.2s ease',
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#131920'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#0D1117'; }}
@@ -115,7 +116,7 @@ export default function ConsoleSidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className="flex items-center justify-between px-3 py-2.5 text-xs rounded-xl transition-all"
+                className={`sidebar-nav-item flex items-center justify-between px-3 py-2.5 text-xs rounded-xl${isActive ? ' is-active' : ''}`}
                 style={
                   isActive
                     ? {
@@ -143,7 +144,7 @@ export default function ConsoleSidebar() {
               >
                 <div className="flex items-center gap-2.5">
                   <span
-                    className="material-symbols-outlined text-lg"
+                    className="sidebar-nav-icon material-symbols-outlined text-lg"
                     style={{ color: isActive ? '#6B9AF8' : '#4B5568' }}
                   >
                     {item.icon}

@@ -117,7 +117,7 @@ export default function SecurityPage() {
       )}
 
       {/* TOP STATS & POSTURE HERO BANNER */}
-      <section className="relative overflow-hidden rounded-lg bg-[#0F1216] border border-[#252B33] p-5">
+      <section className="console-enter console-delay-0 relative overflow-hidden rounded-lg bg-[#0F1216] border border-[#252B33] p-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex flex-col gap-2 max-w-2xl">
             <div className="flex items-center gap-2">
